@@ -36,6 +36,25 @@ public final class DbClient {
         }
     }
 
+    /** Run a query and return each row as "col1|col2|..." (handy for before/after comparisons). */
+    public static java.util.List<String> queryRows(String sql) throws SQLException, InterruptedException {
+        java.util.List<String> rows = new java.util.ArrayList<>();
+        try (Connection con = connect();
+             Statement stmt = con.createStatement();
+             ResultSet rs = stmt.executeQuery(sql)) {
+            int cols = rs.getMetaData().getColumnCount();
+            while (rs.next()) {
+                StringBuilder row = new StringBuilder();
+                for (int i = 1; i <= cols; i++) {
+                    if (i > 1) row.append('|');
+                    row.append(rs.getString(i));
+                }
+                rows.add(row.toString());
+            }
+        }
+        return rows;
+    }
+
     /** Run an INSERT/UPDATE/DELETE and return the affected row count. */
     public static int update(String sql) throws SQLException, InterruptedException {
         try (Connection con = connect();

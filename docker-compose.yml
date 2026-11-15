@@ -94,8 +94,12 @@ services:
     environment:
       APP_URL: http://app:8080/shop/
       DB_URL: jdbc:sqlserver://cosc304_sqlserver:1433;databaseName=orders;encrypt=true;trustServerCertificate=true
+      PROJECT_DIR: /project
     volumes:
       - ./tests:/tests
+      # Read-only views of the project so tests can inspect the DDL and pages.
+      - ./ddl:/project/ddl:ro
+      - ./shop:/project/shop:ro
       - maven-cache:/root/.m2
     command: mvn -q test
     networks:
