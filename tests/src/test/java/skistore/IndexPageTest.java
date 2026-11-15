@@ -24,6 +24,12 @@ class IndexPageTest {
     }
 
     @Test
+    void homePageLinksToDatabaseSetup() throws Exception {
+        // Dev convenience link; remove before release.
+        assertTrue(AppClient.get("index.jsp").body().contains("href=\"loaddata.jsp\""));
+    }
+
+    @Test
     void unknownPageReturns404() throws Exception {
         HttpResponse<String> response = AppClient.get("no-such-page.jsp");
         assertEquals(404, response.statusCode());

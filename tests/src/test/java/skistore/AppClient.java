@@ -33,6 +33,17 @@ public final class AppClient {
         return CLIENT.send(request, HttpResponse.BodyHandlers.ofString());
     }
 
+    /** POST a form (already URL-encoded, e.g. "customerId=1") to a page. */
+    public static HttpResponse<String> post(String path, String formBody) throws IOException, InterruptedException {
+        waitForTomcat();
+        HttpRequest request = HttpRequest.newBuilder(URI.create(BASE_URL + path))
+                .timeout(Duration.ofSeconds(120))
+                .header("Content-Type", "application/x-www-form-urlencoded")
+                .POST(HttpRequest.BodyPublishers.ofString(formBody))
+                .build();
+        return CLIENT.send(request, HttpResponse.BodyHandlers.ofString());
+    }
+
     /** Tomcat can take a while to start; retry for up to ~60 seconds. */
     private static void waitForTomcat() throws InterruptedException {
         if (ready) return;

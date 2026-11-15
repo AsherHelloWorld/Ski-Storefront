@@ -21,6 +21,13 @@
             <version>5.11.3</version>
             <scope>test</scope>
         </dependency>
+        <!-- Same driver version as the app (lib/mssql-jdbc-13.6.0.jre11.jar). -->
+        <dependency>
+            <groupId>com.microsoft.sqlserver</groupId>
+            <artifactId>mssql-jdbc</artifactId>
+            <version>13.6.0.jre11</version>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 
     <build>

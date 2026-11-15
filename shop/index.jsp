@@ -10,5 +10,8 @@
 
 <h2 align="center"><a href="listorder.jsp">List All Orders</a></h2>
 
+<!-- Dev convenience link: remove before release. -->
+<h4 align="center"><a href="loaddata.jsp">Database Setup</a></h4>
+
 </body>
 </html>
