@@ -93,6 +93,7 @@ services:
       - app
     environment:
       APP_URL: http://app:8080/shop/
+      DB_URL: jdbc:sqlserver://cosc304_sqlserver:1433;databaseName=orders;encrypt=true;trustServerCertificate=true
     volumes:
       - ./tests:/tests
       - maven-cache:/root/.m2
