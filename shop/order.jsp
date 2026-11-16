@@ -27,9 +27,10 @@ List<Object[]> receipt = new ArrayList<>();   // productId, name, quantity, pric
 int customerId = -1;
 String customerName = "";
 
-// Get customer id
+// Get customer id and password (bonus: the password must match the customer's)
 String custId = request.getParameter("customerId");
 custId = (custId == null) ? "" : custId.trim();
+String password = request.getParameter("password");
 
 @SuppressWarnings({"unchecked"})
 HashMap<String, ArrayList<Object>> productList =
@@ -72,9 +73,10 @@ else
     {
         // ---- 3. The customer must exist ----
         String address = null, city = null, state = null, postalCode = null, country = null;
+        String storedPassword = null;
         boolean customerFound;
         try (PreparedStatement custStmt = con.prepareStatement(
-                "SELECT firstName, lastName, address, city, state, postalCode, country "
+                "SELECT firstName, lastName, address, city, state, postalCode, country, password "
               + "FROM customer WHERE customerId = ?"))
         {
             custStmt.setInt(1, customerId);
@@ -89,6 +91,7 @@ else
                     state = rst.getString("state");
                     postalCode = rst.getString("postalCode");
                     country = rst.getString("country");
+                    storedPassword = rst.getString("password");
                 }
             }
         }
@@ -101,9 +104,18 @@ else
             errorLink = "checkout.jsp";
             errorLinkText = "Back to checkout";
         }
+        // ---- 4. Bonus: the password must match (compared in Java: exact and case-sensitive) ----
+        else if (password == null || storedPassword == null || !password.equals(storedPassword))
+        {
+            errorTitle = "Invalid password";
+            errorMessage = "Invalid password for customer " + customerId
+                         + ". Please go back and try again.";
+            errorLink = "checkout.jsp";
+            errorLinkText = "Back to checkout";
+        }
         else
         {
-            // ---- 4. Save the order: all of it, or none of it ----
+            // ---- 5. Save the order: all of it, or none of it ----
             // One transaction, so a failure part-way (e.g. an unknown product) leaves no half order.
             con.setAutoCommit(false);
             try
@@ -183,7 +195,7 @@ else
                 throw new SQLException("Order not saved", ex);
             }
 
-            // ---- 5. Success: clear the cart only now that everything is saved ----
+            // ---- 6. Success: clear the cart only now that everything is saved ----
             session.removeAttribute("productList");
         }
     }

@@ -92,6 +92,44 @@ section.order {
 table.order-items { margin-top: 12px; }
 table.order-items th { background: #fff; color: var(--muted); }
 
+/* Forms */
+form.checkout {
+    display: grid;
+    grid-template-columns: max-content minmax(0, 240px);
+    gap: 10px 12px;
+    align-items: center;
+    margin: 16px 0;
+}
+form.checkout input[type="submit"] { grid-column: 2; justify-self: start; }
+
+input[type="text"], input[type="password"], input[type="number"], select {
+    padding: 6px 8px;
+    border: 1px solid #b6c2cf;
+    border-radius: 4px;
+    font: inherit;
+    max-width: 100%;
+}
+
+input[type="submit"], button {
+    padding: 6px 14px;
+    border: 1px solid var(--accent);
+    border-radius: 4px;
+    background: var(--accent);
+    color: #fff;
+    font: inherit;
+    cursor: pointer;
+}
+input[type="submit"]:hover, button:hover { background: var(--accent-dark); }
+input[type="reset"], button.secondary {
+    padding: 6px 14px;
+    border: 1px solid #b6c2cf;
+    border-radius: 4px;
+    background: #fff;
+    color: var(--ink);
+    font: inherit;
+    cursor: pointer;
+}
+
 /* Messages */
 .notice { color: var(--muted); }
 .error {
