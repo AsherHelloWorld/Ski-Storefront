@@ -8,7 +8,6 @@ Java/JSP on Tomcat 11 and SQL Server.
 | Name | Student number |
 |------|----------------|
 | Asher Nathan | 40317612 |
-|  |  |
 
 ## Required pages
 
@@ -22,7 +21,7 @@ Java/JSP on Tomcat 11 and SQL Server.
 
 Bonus marks requested for the following (the assignment's maximum of 10 applies):
 
-| Bonus | Marks | Where | What we did |
+| Bonus | Marks | Where | What it does |
 |-------|-------|-------|-------------|
 | Remove items / change quantities in the cart | +5 | `showcart.jsp`, `updatecart.jsp` | Every cart line has a quantity box with **Update** and a **Remove** button, plus an **Empty cart** button. A quantity of 0 removes the line; anything other than 0–99 is rejected with a message. Changes are POST-only, then redirect back to the cart. |
 | Validate the customer's password when ordering | +5 | `checkout.jsp`, `order.jsp` | Checkout asks for the customer ID **and password**; `order.jsp` checks the password (exact, case-sensitive) against the `customer` table before saving anything. A wrong or missing password saves nothing and keeps the cart. |
@@ -36,13 +35,48 @@ prices taken from the database rather than the editable cart link.
 
 ## Running it
 
+Requires Docker Desktop. Ports 80 and 1433 are the same as the course's lab 7 stack, so stop
+that first (`docker compose down` in its folder).
+
 ```bash
 docker compose up -d --build        # site: http://localhost/shop/
 docker compose down                 # stop (keeps the database)
 ```
 
-`shop/` is mounted live into Tomcat: edit a JSP and refresh. The database is loaded from
-`ddl/SQLServer_orderdb.ddl`; **Database Setup** (`loaddata.jsp`) resets it to that data.
+The first start downloads SQL Server and Tomcat and loads the database, which takes a few
+minutes (longer on Apple Silicon, where SQL Server runs under emulation).
+
+## Checking out
+
+Checkout asks for a customer ID **and password** (bonus). The sample customers are:
+
+| Customer ID | Name | Password |
+|-------------|------|----------|
+| 1 | Arnold Anderson | `304Arnold!` |
+| 2 | Bobby Brown | `304Bobby!` |
+| 3 | Candace Cole | `304Candace!` |
+| 4 | Darren Doe | `304Darren!` |
+| 5 | Elizabeth Elliott | `304Beth!` |
+
+## Data
+
+The database is loaded from `ddl/SQLServer_orderdb.ddl`. It uses the course schema unchanged;
+only the sample rows differ: 30 skis in 6 categories (All-Mountain, Powder, Carving,
+Park/Freestyle, Touring, Kids), with ski specs in `productDesc` and a grey placeholder image.
+The course's 5 sample customers are kept, and the 5 sample orders are rebuilt with skis.
+
+**Database Setup** (`loaddata.jsp`, linked from the home page) shows row counts and has a
+**Reset Database** button that reloads the DDL, removing any orders placed since.
+
+## Project layout
+
+| Path | Contents |
+|------|----------|
+| `shop/` | The web app (JSP pages, `css/`, `img/`) |
+| `ddl/SQLServer_orderdb.ddl` | Schema and ski sample data |
+| `lib/` | SQL Server JDBC driver |
+| `Dockerfile`, `docker-compose.yml` | Tomcat + SQL Server setup |
+| `tests/` | JUnit test suite and coverage tooling |
 
 ## Tests
 
