@@ -76,6 +76,37 @@ class ListProdBonusTest {
         assertEquals(2, ListProdPageTest.listedNames(page("Atomic", "1")).size());
     }
 
+    /** The search form's HTML. */
+    static String searchForm(String body) {
+        Matcher m = Pattern.compile("<form method=\"get\" action=\"listprod\\.jsp\".*?</form>", Pattern.DOTALL)
+                .matcher(body);
+        assertTrue(m.find(), "search form");
+        return m.group();
+    }
+
+    @Test
+    void choosingACategorySubmitsTheFormStraightAway() throws Exception {
+        String form = searchForm(AppClient.get("listprod.jsp").body());
+        assertTrue(form.contains("<select name=\"categoryId\" aria-label=\"Category\" onchange=\"this.form.submit()\">"),
+                form);
+        assertTrue(form.contains("type=\"submit\""), "Submit button stays for the text box and no-JavaScript browsers");
+    }
+
+    @Test
+    void resetClearsTheSearchAndCategoryAndShowsEverySki() throws Exception {
+        String form = searchForm(page("Bent", "2"));
+        // A plain <input type="reset"> would only restore the submitted values, i.e. do nothing.
+        assertFalse(form.contains("type=\"reset\""), "browser reset does not clear a submitted search");
+        Matcher reset = Pattern.compile("<a class=\"button secondary\" href=\"([^\"]*)\">Reset</a>").matcher(form);
+        assertTrue(reset.find(), "Reset button in the search form:\n" + form);
+        assertEquals("listprod.jsp", reset.group(1), "reset loads the page with no search and no category");
+
+        String body = AppClient.get(reset.group(1)).body();
+        assertEquals(30, ListProdPageTest.listedNames(body).size());
+        assertTrue(body.contains("value=\"\""), "search box is empty");
+        assertFalse(select(body).contains("selected"), "no category selected");
+    }
+
     @Test
     void chosenCategoryStaysSelected() throws Exception {
         assertTrue(select(page("", "2")).contains("<option value=\"2\" selected>Powder</option>"));
