@@ -158,6 +158,18 @@ a.button {
 }
 a.button:hover { background: var(--accent-dark); color: #fff; }
 
+/* Cart (bonus formatting) */
+table.cart td { vertical-align: middle; }
+table.cart td.name { font-weight: 600; }
+table.cart .muted { color: var(--muted); font-weight: 400; font-size: 0.85rem; margin-left: 6px; }
+table.cart form.qty { display: flex; gap: 6px; align-items: center; }
+table.cart form.qty input[type="number"] { width: 4.5em; }
+table.cart tr.total th, table.cart tr.total td { font-size: 1.1rem; border-bottom: none; }
+table.cart .error { margin-top: 6px; padding: 4px 8px; font-weight: 400; font-size: 0.85rem; }
+
+.actions { display: flex; flex-wrap: wrap; gap: 12px 20px; align-items: center; margin: 20px 0; }
+form.inline { display: inline; margin: 0; }
+
 /* Messages */
 .notice { color: var(--muted); }
 .error {
