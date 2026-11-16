@@ -60,7 +60,8 @@ catch (SQLException ex)
 
 <form method="get" action="listprod.jsp" class="search">
 <input type="text" name="productName" size="40" value="<%= escapeHtml(name) %>" aria-label="Ski name" placeholder="Ski name">
-<select name="categoryId" aria-label="Category">
+<%-- Choosing a category searches straight away (the Submit button still works without JavaScript). --%>
+<select name="categoryId" aria-label="Category" onchange="this.form.submit()">
 <option value="">All categories</option>
 <%
 for (String[] cat : categories)
@@ -72,7 +73,10 @@ for (String[] cat : categories)
 }
 %>
 </select>
-<input type="submit" value="Submit"><input type="reset" value="Reset"> (Leave blank for all skis)
+<input type="submit" value="Submit">
+<%-- Reset = load the page with no search and no category (a plain reset button would only
+     restore the values that were just submitted). --%>
+<a class="button secondary" href="listprod.jsp">Reset</a> (Leave blank for all skis)
 </form>
 
 <%

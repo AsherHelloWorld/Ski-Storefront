@@ -157,6 +157,8 @@ a.button {
     white-space: nowrap;
 }
 a.button:hover { background: var(--accent-dark); color: #fff; }
+a.button.secondary { background: #fff; color: var(--ink); border: 1px solid #b6c2cf; padding: 5px 12px; }
+a.button.secondary:hover { background: var(--snow); color: var(--ink); }
 
 /* Cart (bonus formatting) */
 table.cart td { vertical-align: middle; }
