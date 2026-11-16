@@ -74,17 +74,25 @@ services:
     container_name: ski-store
     depends_on:
       - ski-sqlserver
+    environment:
+      # Coverage agent for the compiled JSPs (org.apache.jsp.*). Only reachable inside
+      # ski-network on port 6300; the tests service collects from it. Dev only.
+      CATALINA_OPTS: >-
+        -javaagent:/opt/jacoco/jacocoagent.jar=output=tcpserver,address=*,port=6300,includes=org.apache.jsp.*
     volumes:
       # Live mount: edit a JSP and refresh, no rebuild needed.
       - ./shop:/usr/local/tomcat/webapps/shop
       - ./ddl:/opt/cosc304/ddl:ro
+      # Tomcat's compiled JSPs, shared with the tests service for the coverage report.
+      - tomcat-work:/usr/local/tomcat/work
     ports:
       - "127.0.0.1:80:8080"
     networks:
       - ski-network
 
-  # Test runner. Only starts when asked:
+  # Test runner + JSP coverage report. Only starts when asked:
   #   docker compose --profile test run --rm tests
+  # Report: tests/target/coverage/index.html
   tests:
     profiles: ["test"]
     image: maven:3.9-eclipse-temurin-21
@@ -95,19 +103,24 @@ services:
       APP_URL: http://app:8080/shop/
       DB_URL: jdbc:sqlserver://cosc304_sqlserver:1433;databaseName=orders;encrypt=true;trustServerCertificate=true
       PROJECT_DIR: /project
+      JACOCO_HOST: app
+      JACOCO_PORT: "6300"
+      COVERAGE_MIN: "90"   # minimum JSP line coverage (%) before the run fails
     volumes:
       - ./tests:/tests
       # Read-only views of the project so tests can inspect the DDL and pages.
       - ./ddl:/project/ddl:ro
       - ./shop:/project/shop:ro
+      - tomcat-work:/project/work:ro
       - maven-cache:/root/.m2
-    command: mvn -q test
+    command: bash run-tests.sh
     networks:
       - ski-network
 
 volumes:
   ski-db:
   maven-cache:
+  tomcat-work:
 
 networks:
   ski-network:
