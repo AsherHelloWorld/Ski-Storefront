@@ -48,6 +48,11 @@ class ListOrderPageTest {
         return m.group(1);
     }
 
+    /** True if the HTML has a table cell (td or th, any attributes) containing exactly this text. */
+    static boolean hasCell(String html, String text) {
+        return Pattern.compile("<t[dh][^>]*>" + Pattern.quote(text) + "</t[dh]>").matcher(html).find();
+    }
+
     static int countMatches(String text, String regex) {
         Matcher m = Pattern.compile(regex).matcher(text);
         int n = 0;
@@ -98,9 +103,9 @@ class ListOrderPageTest {
             int checked = 0;
             while (rs.next()) {
                 String section = orderSection(body, rs.getInt("orderId"));
-                assertTrue(section.contains("<td>" + rs.getInt("orderId") + "</td>"), section);
+                assertTrue(hasCell(section, String.valueOf(rs.getInt("orderId"))), section);
                 assertTrue(section.contains(rs.getString("orderDate")), "date: " + section);
-                assertTrue(section.contains("<td>" + rs.getInt("customerId") + "</td>"), section);
+                assertTrue(hasCell(section, String.valueOf(rs.getInt("customerId"))), section);
                 assertTrue(section.contains(rs.getString("firstName") + " " + rs.getString("lastName")), section);
                 assertTrue(section.contains(money(rs.getBigDecimal("totalAmount"))), "total: " + section);
                 checked++;
@@ -113,7 +118,7 @@ class ListOrderPageTest {
     void summaryHasColumnHeadings() throws Exception {
         String section = orderSection(AppClient.get(PAGE).body(), 1);
         for (String heading : List.of("Order Id", "Order Date", "Customer Id", "Customer Name", "Total Amount")) {
-            assertTrue(section.contains("<th>" + heading + "</th>"), "missing heading " + heading);
+            assertTrue(hasCell(section, heading), "missing heading " + heading);
         }
     }
 
@@ -148,10 +153,10 @@ class ListOrderPageTest {
             int checked = 0;
             while (rs.next()) {
                 String section = orderSection(body, rs.getInt("orderId"));
-                String row = "<td>" + rs.getInt("productId") + "</td>";
-                assertTrue(section.contains(row), "product id " + rs.getInt("productId") + " in order " + rs.getInt("orderId"));
+                assertTrue(hasCell(section, String.valueOf(rs.getInt("productId"))),
+                        "product id " + rs.getInt("productId") + " in order " + rs.getInt("orderId"));
                 assertTrue(section.contains(rs.getString("productName")), section);
-                assertTrue(section.contains("<td>" + rs.getInt("quantity") + "</td>"), section);
+                assertTrue(hasCell(section, String.valueOf(rs.getInt("quantity"))), section);
                 assertTrue(section.contains(money(rs.getBigDecimal("price"))), section);
                 checked++;
             }
@@ -175,7 +180,7 @@ class ListOrderPageTest {
     void itemsTableHasColumnHeadings() throws Exception {
         String section = orderSection(AppClient.get(PAGE).body(), 1);
         for (String heading : List.of("Product Id", "Product Name", "Quantity", "Price")) {
-            assertTrue(section.contains("<th>" + heading + "</th>"), "missing heading " + heading);
+            assertTrue(hasCell(section, heading), "missing heading " + heading);
         }
     }
 
@@ -183,7 +188,7 @@ class ListOrderPageTest {
     void itemsStayWithTheirOwnOrder() throws Exception {
         // Order 2 contains only product 5; product 1 must not leak into it from order 1.
         String section = orderSection(AppClient.get(PAGE).body(), 2);
-        assertTrue(section.contains("<td>5</td>"));
+        assertTrue(hasCell(section, "5"));
         assertFalse(section.contains("Atomic Bent 100"));
     }
 
@@ -248,6 +253,21 @@ class ListOrderPageTest {
         String body = AppClient.get(PAGE).body();
         assertFalse(body.contains("<script>alert(1)</script>"), "names must not be rendered as HTML");
         assertTrue(body.contains("&lt;script&gt;alert(1)&lt;/script&gt;"));
+    }
+
+    @Test
+    void productNamesAreHtmlEscaped() throws Exception {
+        DbClient.update("UPDATE product SET productName = 'Tom & Jerry''s \"Ski\"' WHERE productId = 1");
+        String section = orderSection(AppClient.get(PAGE).body(), 1);
+        assertTrue(section.contains("Tom &amp; Jerry&#39;s &quot;Ski&quot;"), section);
+    }
+
+    @Test
+    void missingProductNameShowsBlankNotNull() throws Exception {
+        DbClient.update("UPDATE product SET productName = NULL WHERE productId = 1");
+        String section = orderSection(AppClient.get(PAGE).body(), 1);
+        assertFalse(section.contains(">null<"), "a missing name should not print 'null'");
+        assertTrue(hasCell(section, ""), "the name cell should be empty");
     }
 
     @Test
