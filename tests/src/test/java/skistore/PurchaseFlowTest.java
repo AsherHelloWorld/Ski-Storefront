@@ -4,7 +4,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.net.http.HttpResponse;
-import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import org.junit.jupiter.api.AfterEach;
@@ -49,7 +48,7 @@ class PurchaseFlowTest {
         // Cart -> Check Out -> place the order as customer 4
         String checkout = click(shopper, cart, "checkout\\.jsp").body();
         assertTrue(checkout.contains("action=\"order.jsp\""));
-        String receipt = shopper.post("order.jsp", Map.of("customerId", "4")).body();
+        String receipt = shopper.post("order.jsp", OrderPageTest.form("4")).body();
         assertTrue(receipt.contains("Order completed"), receipt);
         assertTrue(receipt.contains("$2,199.97"));
         int orderId = OrderPageTest.reportedOrderId(receipt);

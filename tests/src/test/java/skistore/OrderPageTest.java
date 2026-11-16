@@ -46,7 +46,17 @@ class OrderPageTest {
     }
 
     static HttpResponse<String> placeOrder(Browser shopper, String customerId) throws Exception {
-        return shopper.post(PAGE, Map.of("customerId", customerId));
+        return shopper.post(PAGE, form(customerId));
+    }
+
+    /** Sample customers' passwords (from the DDL), by customer id. */
+    static final Map<String, String> PASSWORDS = Map.of(
+            "1", "304Arnold!", "2", "304Bobby!", "3", "304Candace!", "4", "304Darren!", "5", "304Beth!");
+
+    /** The checkout form for a customer id, with that customer's correct password. */
+    static Map<String, String> form(String customerId) {
+        return Map.of("customerId", customerId,
+                      "password", PASSWORDS.getOrDefault(customerId.trim(), "wrong"));
     }
 
     void assertNothingSaved() throws Exception {
@@ -79,6 +89,8 @@ class OrderPageTest {
         String body = new Browser().get("checkout.jsp").body();
         assertTrue(body.contains("action=\"order.jsp\""), body);
         assertTrue(body.contains("name=\"customerId\""));
+        assertTrue(body.contains("type=\"password\""), "bonus: checkout asks for the password");
+        assertTrue(body.contains("name=\"password\""));
         assertTrue(body.contains("Ski Store"));
         assertFalse(body.contains("Grocery"));
     }
@@ -123,6 +135,40 @@ class OrderPageTest {
     void surroundingSpacesInTheIdAreIgnored() throws Exception {
         String body = placeOrder(shopperWithCart(), "  2 ").body();
         assertTrue(body.contains("Order completed"), body);
+    }
+
+    // ---- Password (bonus +5) ----------------------------------------------------------
+
+    @ParameterizedTest
+    @ValueSource(strings = {"", "wrong", "304arnold!", "304Arnold", " 304Arnold!", "304Bobby!"})
+    void wrongPasswordIsRejected(String password) throws Exception {
+        Browser shopper = shopperWithCart();
+        String body = shopper.post(PAGE, Map.of("customerId", "1", "password", password)).body();
+        assertTrue(body.contains("Invalid password"), "'" + password + "': " + body);
+        assertFalse(body.contains("304Arnold!"), "never echo the real password");
+        assertNothingSaved();
+        assertFalse(cartIsEmpty(shopper), "cart is kept so the shopper can try again");
+    }
+
+    @Test
+    void missingPasswordIsRejected() throws Exception {
+        Browser shopper = shopperWithCart();
+        String body = shopper.post(PAGE, Map.of("customerId", "1")).body();
+        assertTrue(body.contains("Invalid password"), body);
+        assertNothingSaved();
+    }
+
+    @Test
+    void correctPasswordPlacesTheOrder() throws Exception {
+        Browser shopper = shopperWithCart();
+        String body = shopper.post(PAGE, Map.of("customerId", "5", "password", "304Beth!")).body();
+        assertTrue(body.contains("Order completed"), body);
+    }
+
+    @Test
+    void passwordIsNotEchoedOnErrors() throws Exception {
+        String body = shopperWithCart().post(PAGE, Map.of("customerId", "1", "password", "<secret>")).body();
+        assertFalse(body.contains("secret"));
     }
 
     // ---- Empty cart (1 mark) -------------------------------------------------------

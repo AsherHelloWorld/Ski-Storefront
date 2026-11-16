@@ -8,14 +8,17 @@
 <link rel="stylesheet" href="css/store.css">
 </head>
 <body>
+<%@ include file="header.jsp" %>
 <main>
 
 <h1>Checkout</h1>
-<p>Enter your customer ID to complete the transaction:</p>
+<p>Enter your customer ID and password to complete the transaction:</p>
 
-<form method="post" action="order.jsp">
+<form method="post" action="order.jsp" class="checkout">
     <label for="customerId">Customer ID:</label>
-    <input type="text" id="customerId" name="customerId" required>
+    <input type="text" id="customerId" name="customerId" inputmode="numeric" required>
+    <label for="password">Password:</label>
+    <input type="password" id="password" name="password" autocomplete="current-password" required>
     <input type="submit" value="Place Order">
 </form>
 

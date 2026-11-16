@@ -1,97 +1,135 @@
-<%@ page import="java.util.HashMap" %>
-<%@ page import="java.util.Iterator" %>
-<%@ page import="java.util.ArrayList" %>
+<%@ page import="java.math.BigDecimal" %>
 <%@ page import="java.text.NumberFormat" %>
-<%@ page import="java.util.Map" %>
+<%@ page import="java.util.ArrayList" %>
+<%@ page import="java.util.HashMap" %>
+<%@ page import="java.util.List" %>
+<%@ page import="java.util.Locale" %>
 <%@ page contentType="text/html; charset=UTF-8" pageEncoding="UTF-8" %>
+<%@ include file="util.jsp" %>
 <%!
-// Escape values before displaying them in HTML. Cart values may come from URL parameters.
-private String escapeHtml(Object value)
+// Sort cart lines by product id: numerically when possible, otherwise as text.
+private static int compareIds(String a, String b)
 {
-    if (value == null)
-        return "";
-
-    return value.toString()
-        .replace("&", "&amp;")
-        .replace("<", "&lt;")
-        .replace(">", "&gt;")
-        .replace("\"", "&quot;")
-        .replace("'", "&#39;");
+    try
+    {
+        return Integer.compare(Integer.parseInt(a), Integer.parseInt(b));
+    }
+    catch (NumberFormatException e)
+    {
+        return a.compareTo(b);
+    }
 }
+%>
+<%
+// Get the current list of products (each entry: 0 id, 1 name, 2 price, 3 quantity)
+@SuppressWarnings({"unchecked"})
+HashMap<String, ArrayList<Object>> productList =
+    (HashMap<String, ArrayList<Object>>) session.getAttribute("productList");
+
+// A one-time message from updatecart.jsp (e.g. an invalid quantity).
+String cartMessage = (String) session.getAttribute("cartMessage");
+session.removeAttribute("cartMessage");
+
+NumberFormat currFormat = NumberFormat.getCurrencyInstance(Locale.CANADA);
 %>
 <!DOCTYPE html>
 <html>
 <head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Your Shopping Cart</title>
+<link rel="stylesheet" href="css/store.css">
 </head>
 <body>
+<%@ include file="header.jsp" %>
+<main>
+
+<% if (cartMessage != null) { %>
+<p class="error"><%= escapeHtml(cartMessage) %></p>
+<% } %>
 
 <%
-// Get the current list of products
-@SuppressWarnings({"unchecked"})
-HashMap<String, ArrayList<Object>> productList = (HashMap<String, ArrayList<Object>>) session.getAttribute("productList");
-
 if (productList == null || productList.isEmpty())
 {
-    out.println("<h1>Your shopping cart is empty!</h1>");
+%>
+<h1>Your shopping cart is empty!</h1>
+<p class="actions"><a class="button" href="listprod.jsp">Shop for skis</a></p>
+<%
 }
 else
 {
-	NumberFormat currFormat = NumberFormat.getCurrencyInstance();
+    List<ArrayList<Object>> lines = new ArrayList<>(productList.values());
+    lines.sort((x, y) -> compareIds(x.get(0).toString(), y.get(0).toString()));
 
-	out.println("<h1>Your Shopping Cart</h1>");
-	out.print("<table><tr><th>Product Id</th><th>Product Name</th><th>Quantity</th>");
-	out.println("<th>Price</th><th>Subtotal</th></tr>");
+    int skiCount = 0;
+    for (ArrayList<Object> line : lines)
+        skiCount += (Integer) line.get(3);
+%>
+<h1>Your Shopping Cart</h1>
+<p class="count"><%= skiCount %> <%= skiCount == 1 ? "ski" : "skis" %> in your cart</p>
 
-	double total =0;
-	Iterator<Map.Entry<String, ArrayList<Object>>> iterator = productList.entrySet().iterator();
-	while (iterator.hasNext()) 
-	{	Map.Entry<String, ArrayList<Object>> entry = iterator.next();
-		ArrayList<Object> product = (ArrayList<Object>) entry.getValue();
-		if (product.size() < 4)
-		{
-			out.println("Expected product with four entries. Got: "+escapeHtml(product));
-			continue;
-		}
-		
-		out.print("<tr><td>"+escapeHtml(product.get(0))+"</td>");
-		out.print("<td>"+escapeHtml(product.get(1))+"</td>");
+<div class="table-wrap">
+<table class="cart">
+    <tr><th>Product</th><th class="num">Price</th><th>Quantity</th><th class="num">Subtotal</th><th></th></tr>
+<%
+    BigDecimal total = BigDecimal.ZERO;
+    for (ArrayList<Object> product : lines)
+    {
+        String id = product.get(0).toString();
+        int quantity = (Integer) product.get(3);
 
-		out.print("<td align=\"center\">"+escapeHtml(product.get(3))+"</td>");
-		Object price = product.get(2);
-		Object itemqty = product.get(3);
-		double pr = 0;
-		int qty = 0;
-		
-		try
-		{
-			pr = Double.parseDouble(price.toString());
-		}
-		catch (Exception e)
-		{
-			out.println("Invalid price for product: "+escapeHtml(product.get(0))+" price: "+escapeHtml(price));
-		}
-		try
-		{
-			qty = Integer.parseInt(itemqty.toString());
-		}
-		catch (Exception e)
-		{
-			out.println("Invalid quantity for product: " + escapeHtml(product.get(0)) + " quantity: " + escapeHtml(itemqty));
-		}		
+        // The price came from the add-to-cart link, so it may not be a valid number.
+        BigDecimal price = BigDecimal.ZERO;
+        String priceProblem = null;
+        try
+        {
+            price = new BigDecimal(product.get(2).toString());
+        }
+        catch (NumberFormatException e)
+        {
+            priceProblem = "Invalid price for product " + id + ": " + product.get(2);
+        }
+        BigDecimal subtotal = price.multiply(BigDecimal.valueOf(quantity));
+        total = total.add(subtotal);
+%>
+    <tr class="item" id="cart-item-<%= escapeHtml(id) %>">
+        <td class="name"><%= escapeHtml(product.get(1).toString()) %>
+            <span class="muted">#<%= escapeHtml(id) %></span>
+            <% if (priceProblem != null) { %><div class="error"><%= escapeHtml(priceProblem) %></div><% } %></td>
+        <td class="num"><%= currFormat.format(price) %></td>
+        <td>
+            <form method="post" action="updatecart.jsp" class="qty">
+                <input type="hidden" name="id" value="<%= escapeHtml(id) %>">
+                <input type="number" name="quantity" value="<%= quantity %>" min="0" max="99" aria-label="Quantity">
+                <button type="submit" name="action" value="update" class="secondary">Update</button>
+            </form>
+        </td>
+        <td class="num"><%= currFormat.format(subtotal) %></td>
+        <td>
+            <form method="post" action="updatecart.jsp">
+                <input type="hidden" name="id" value="<%= escapeHtml(id) %>">
+                <button type="submit" name="action" value="remove" class="secondary">Remove</button>
+            </form>
+        </td>
+    </tr>
+<%
+    }
+%>
+    <tr class="total"><th colspan="3" class="num">Order Total</th><td class="num"><%= currFormat.format(total) %></td><td></td></tr>
+</table>
+</div>
 
-		out.print("<td align=\"right\">"+currFormat.format(pr)+"</td>");
-		out.print("<td align=\"right\">"+currFormat.format(pr*qty)+"</td></tr>");		
-		total = total +pr*qty;
-	}
-	out.println("<tr><td colspan=\"4\" align=\"right\"><b>Order Total</b></td>"
-			+"<td align=\"right\">"+currFormat.format(total)+"</td></tr>");
-	out.println("</table>");
-
-	out.println("<h2><a href=\"checkout.jsp\">Check Out</a></h2>");
+<div class="actions">
+    <a class="button" href="checkout.jsp">Check Out</a>
+    <a href="listprod.jsp">Continue Shopping</a>
+    <form method="post" action="updatecart.jsp" class="inline">
+        <button type="submit" name="action" value="clear" class="secondary">Empty cart</button>
+    </form>
+</div>
+<%
 }
 %>
-<h2><a href="listprod.jsp">Continue Shopping</a></h2>
-</body>
-</html> 
 
+</main>
+</body>
+</html>

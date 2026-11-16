@@ -14,6 +14,7 @@
 <link rel="stylesheet" href="css/store.css">
 </head>
 <body>
+<%@ include file="header.jsp" %>
 <main>
 
 <h1>Order List</h1>
