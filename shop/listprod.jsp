@@ -19,6 +19,7 @@ name = (name == null) ? "" : name.trim();
 <link rel="stylesheet" href="css/store.css">
 </head>
 <body>
+<%@ include file="header.jsp" %>
 <main>
 
 <h1>Search for the skis you want to buy:</h1>

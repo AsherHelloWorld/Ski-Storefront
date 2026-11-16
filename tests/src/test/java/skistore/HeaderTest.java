@@ -48,6 +48,19 @@ class HeaderTest {
     }
 
     @Test
+    void receiptShowsAnEmptyCartAndAFailedOrderKeepsTheCount() throws Exception {
+        ResetDatabaseTest.reset();
+        Browser shopper = new Browser();
+        shopper.addToCart(1, "Atomic Bent 100", "799.99");
+        String failed = shopper.post("order.jsp", OrderPageTest.form("999")).body();
+        assertTrue(header(failed).contains("Cart (1)"), "failed order keeps the cart");
+        String receipt = shopper.post("order.jsp", OrderPageTest.form("1")).body();
+        assertTrue(receipt.contains("Order completed"), receipt);
+        assertTrue(header(receipt).contains("Cart (0)"), "cart count is already cleared on the receipt");
+        ResetDatabaseTest.reset();
+    }
+
+    @Test
     void headerShowsTheStoreName() throws Exception {
         assertTrue(header(new Browser().get("listorder.jsp").body()).contains("Ski Store"));
     }

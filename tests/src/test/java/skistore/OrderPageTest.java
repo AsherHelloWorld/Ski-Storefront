@@ -46,7 +46,12 @@ class OrderPageTest {
     }
 
     static HttpResponse<String> placeOrder(Browser shopper, String customerId) throws Exception {
-        return shopper.post(PAGE, Map.of("customerId", customerId));
+        return shopper.post(PAGE, form(customerId));
+    }
+
+    /** The checkout form for a customer id. */
+    static Map<String, String> form(String customerId) {
+        return Map.of("customerId", customerId);
     }
 
     void assertNothingSaved() throws Exception {

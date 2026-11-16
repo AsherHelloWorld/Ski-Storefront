@@ -5,8 +5,11 @@
 <html>
 <head>
 <title>Ski Store Database Setup</title>
+<link rel="stylesheet" href="css/store.css">
 </head>
 <body>
+<%@ include file="header.jsp" %>
+<main>
 
 <h2>Ski Store Database</h2>
 
@@ -95,5 +98,6 @@ products, and other store data, and restore the original sample data.
 
 <p><a href="index.jsp">Return to Store</a></p>
 
+</main>
 </body>
 </html>

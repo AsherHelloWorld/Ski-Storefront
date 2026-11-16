@@ -28,6 +28,36 @@ h2 { margin: 24px 0 12px; font-size: 1.3rem; }
 a { color: var(--accent); }
 a:hover { color: var(--accent-dark); }
 
+/* Site header (bonus) */
+.site-header {
+    margin: 0 -16px;
+    padding: 0 16px;
+    background: var(--accent);
+}
+
+.site-header nav {
+    max-width: 960px;
+    margin: 0 auto;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 20px;
+    align-items: center;
+    padding: 12px 0;
+}
+
+.site-header a {
+    color: #fff;
+    text-decoration: none;
+    padding: 4px 0;
+    border-bottom: 2px solid transparent;
+}
+
+.site-header a:hover { border-bottom-color: rgba(255, 255, 255, 0.6); }
+.site-header a[aria-current="page"] { border-bottom-color: #fff; font-weight: 600; }
+.site-header .brand { font-size: 1.2rem; font-weight: 700; margin-right: auto; }
+
+main.home { text-align: center; }
+
 /* Tables */
 .table-wrap { overflow-x: auto; }
 

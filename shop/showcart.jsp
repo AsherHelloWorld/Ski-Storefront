@@ -23,8 +23,10 @@ private String escapeHtml(Object value)
 <html>
 <head>
 <title>Your Shopping Cart</title>
+<link rel="stylesheet" href="css/store.css">
 </head>
 <body>
+<%@ include file="header.jsp" %>
 
 <%
 // Get the current list of products
