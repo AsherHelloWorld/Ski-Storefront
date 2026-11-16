@@ -64,24 +64,29 @@ public final class DbClient {
     }
 
     /**
-     * SQL Server under emulation can take a couple of minutes on first start,
-     * and the orders DB only exists once the DDL has run. Retry until a query
-     * against the customer table succeeds.
+     * SQL Server under emulation can take a couple of minutes on first start, and
+     * the container then loads the DDL. Wait until that load has finished: the
+     * DDL's last statement sets product image URLs, so once any are set it's done.
      */
     private static void waitForDatabase() throws InterruptedException {
         if (ready) return;
-        long deadline = System.currentTimeMillis() + 180_000;
-        SQLException last = null;
+        long deadline = System.currentTimeMillis() + 300_000;
+        Exception last = null;
         while (System.currentTimeMillis() < deadline) {
             try (Connection con = DriverManager.getConnection(URL, USER, PASSWORD);
-                 Statement stmt = con.createStatement()) {
-                stmt.executeQuery("SELECT COUNT(*) FROM customer").close();
-                ready = true;
-                return;
+                 Statement stmt = con.createStatement();
+                 ResultSet rs = stmt.executeQuery(
+                         "SELECT COUNT(*) FROM product WHERE productImageURL IS NOT NULL")) {
+                rs.next();
+                if (rs.getInt(1) > 0) {
+                    ready = true;
+                    return;
+                }
+                last = new IllegalStateException("DDL still loading");
             } catch (SQLException e) {
                 last = e;
-                Thread.sleep(3_000);
             }
+            Thread.sleep(3_000);
         }
         throw new IllegalStateException("Database not ready at " + URL, last);
     }

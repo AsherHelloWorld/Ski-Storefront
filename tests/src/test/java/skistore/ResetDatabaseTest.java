@@ -170,6 +170,7 @@ class ResetDatabaseTest {
     }
 
     static void reset() throws Exception {
+        DbClient.connect().close();   // waits for SQL Server + the initial DDL load
         HttpResponse<String> response = AppClient.post("loaddata.jsp", "");
         assertTrue(response.body().contains("Database reset completed successfully"), response.body());
     }
