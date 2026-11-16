@@ -4,15 +4,73 @@
 #   - database name     orders (created by ddl/SQLServer_orderdb.ddl)
 #   - DDL mount         /opt/cosc304/ddl (used by shop/loaddata.jsp)
 # Ports 80 and 1433 clash with the lab 7 starter stack; stop it first.
+#
+# Two separate stacks:
+#   real site   ski-sqlserver + app (ski-store)        on ski-network   http://localhost/shop/
+#   test copy   test-sqlserver + test-app + tests      on test-network  (profile "test", no host ports)
+# The test copy has its own database volume, so test runs never touch the real site's data.
+#
+# Careful: `docker compose down -v` deletes EVERY volume here, including the real
+# site's ski-db. To wipe only the test database:
+#   docker compose --profile test rm -sf test-sqlserver && docker volume rm ski-storefront_ski-test-db
+
+# Shared SQL Server definition (used by both stacks).
+x-sqlserver: &sqlserver
+  platform: linux/amd64
+  image: mcr.microsoft.com/mssql/server:2025-latest
+  environment:
+    ACCEPT_EULA: 'Y'
+    MSSQL_SA_PASSWORD: '304#sa#pw'
+    MSSQL_PID: "Developer"
+  command:
+    - /bin/bash
+    - -c
+    - |
+      set -e
+      /opt/mssql/bin/sqlservr &
+      pid=$$!
+      trap 'kill -TERM "$$pid" 2>/dev/null || true' TERM INT
+
+      # Wait for SQL Server to accept a connection (up to about 5 minutes).
+      ready=0
+      for attempt in {1..60}; do
+        if /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P "$$MSSQL_SA_PASSWORD" -No -l 5 -b -Q "SELECT 1" >/dev/null 2>&1; then
+          ready=1
+          break
+        fi
+        if ! kill -0 "$$pid" 2>/dev/null; then
+          echo "SQL Server exited before becoming ready" >&2
+          exit 1
+        fi
+        sleep 5
+      done
+      if [ "$$ready" -ne 1 ]; then
+        echo "SQL Server did not become ready" >&2
+        exit 1
+      fi
+
+      # Run the DDL scripts only once per volume. To re-run after editing the
+      # DDL, use the Reset button on loaddata.jsp or `docker compose down -v`.
+      if [ ! -f /var/opt/mssql/.cosc304-init-complete ]; then
+        found=0
+        for file in /scripts/SQLServer*.ddl; do
+          [ -f "$$file" ] || continue
+          found=1
+          /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P "$$MSSQL_SA_PASSWORD" -No -l 30 -b -i "$$file"
+        done
+        if [ "$$found" -ne 1 ]; then
+          echo "No SQL Server DDL scripts found under /scripts" >&2
+          exit 1
+        fi
+        touch /var/opt/mssql/.cosc304-init-complete
+      fi
+      wait "$$pid"
+
 services:
+  # ---------------- Real site ----------------
   ski-sqlserver:
-    platform: linux/amd64
-    image: mcr.microsoft.com/mssql/server:2025-latest
+    <<: *sqlserver
     container_name: ski-sqlserver
-    environment:
-      ACCEPT_EULA: 'Y'
-      MSSQL_SA_PASSWORD: '304#sa#pw'
-      MSSQL_PID: "Developer"
     ports:
       - "127.0.0.1:1433:1433"
     volumes:
@@ -22,49 +80,6 @@ services:
       ski-network:
         aliases:
           - cosc304_sqlserver
-    command:
-      - /bin/bash
-      - -c
-      - |
-        set -e
-        /opt/mssql/bin/sqlservr &
-        pid=$$!
-        trap 'kill -TERM "$$pid" 2>/dev/null || true' TERM INT
-
-        # Wait for SQL Server to accept a connection (up to about 5 minutes).
-        ready=0
-        for attempt in {1..60}; do
-          if /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P "$$MSSQL_SA_PASSWORD" -No -l 5 -b -Q "SELECT 1" >/dev/null 2>&1; then
-            ready=1
-            break
-          fi
-          if ! kill -0 "$$pid" 2>/dev/null; then
-            echo "SQL Server exited before becoming ready" >&2
-            exit 1
-          fi
-          sleep 5
-        done
-        if [ "$$ready" -ne 1 ]; then
-          echo "SQL Server did not become ready" >&2
-          exit 1
-        fi
-
-        # Run the DDL scripts only once per volume. To re-run after editing the
-        # DDL, use the Reset button on loaddata.jsp or `docker compose down -v`.
-        if [ ! -f /var/opt/mssql/.cosc304-init-complete ]; then
-          found=0
-          for file in /scripts/SQLServer*.ddl; do
-            [ -f "$$file" ] || continue
-            found=1
-            /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P "$$MSSQL_SA_PASSWORD" -No -l 30 -b -i "$$file"
-          done
-          if [ "$$found" -ne 1 ]; then
-            echo "No SQL Server DDL scripts found under /scripts" >&2
-            exit 1
-          fi
-          touch /var/opt/mssql/.cosc304-init-complete
-        fi
-        wait "$$pid"
 
   app:
     build:
@@ -83,31 +98,71 @@ services:
     networks:
       - ski-network
 
-  # Test runner. Only starts when asked:
-  #   docker compose --profile test run --rm tests
+  # ---------------- Test copy (profile "test") ----------------
+  # Started automatically by:  docker compose --profile test run --rm tests
+  test-sqlserver:
+    <<: *sqlserver
+    profiles: ["test"]
+    container_name: ski-test-sqlserver
+    hostname: ski-test-sqlserver      # IsolationTest checks this name
+    volumes:
+      - ski-test-db:/var/opt/mssql
+      - ./ddl:/scripts:ro
+    networks:
+      test-network:
+        aliases:
+          - cosc304_sqlserver         # same name jdbc.jsp uses, but on the test network
+
+  test-app:
+    profiles: ["test"]
+    image: ski-store
+    container_name: ski-test-store
+    depends_on:
+      - test-sqlserver
+    environment:
+      # Coverage agent for the compiled JSPs (org.apache.jsp.*), reachable only on test-network.
+      CATALINA_OPTS: >-
+        -javaagent:/opt/jacoco/jacocoagent.jar=output=tcpserver,address=*,port=6300,includes=org.apache.jsp.*
+    volumes:
+      - ./shop:/usr/local/tomcat/webapps/shop
+      - ./ddl:/opt/cosc304/ddl:ro
+      # Tomcat's compiled JSPs, shared with the tests service for the coverage report.
+      - tomcat-work:/usr/local/tomcat/work
+    networks:
+      - test-network
+
+  # Test runner + JSP coverage report.
+  # Reports: tests/target/coverage/jsp-lines.txt (and generated-java/index.html)
   tests:
     profiles: ["test"]
     image: maven:3.9-eclipse-temurin-21
     working_dir: /tests
     depends_on:
-      - app
+      - test-app
     environment:
-      APP_URL: http://app:8080/shop/
+      APP_URL: http://test-app:8080/shop/
       DB_URL: jdbc:sqlserver://cosc304_sqlserver:1433;databaseName=orders;encrypt=true;trustServerCertificate=true
       PROJECT_DIR: /project
+      JACOCO_HOST: test-app
+      JACOCO_PORT: "6300"
+      COVERAGE_MIN: "90"   # minimum JSP line coverage (%) before the run fails
     volumes:
       - ./tests:/tests
       # Read-only views of the project so tests can inspect the DDL and pages.
       - ./ddl:/project/ddl:ro
       - ./shop:/project/shop:ro
+      - tomcat-work:/project/work:ro
       - maven-cache:/root/.m2
-    command: mvn -q test
+    command: bash run-tests.sh
     networks:
-      - ski-network
+      - test-network
 
 volumes:
   ski-db:
+  ski-test-db:
   maven-cache:
+  tomcat-work:
 
 networks:
   ski-network:
+  test-network:
