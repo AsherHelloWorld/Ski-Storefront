@@ -106,6 +106,19 @@ class ListProdBonusTest {
         assertTrue(options.contains("&lt;Park &amp; Pipe&gt;"), options);
     }
 
+    @Test
+    void pageSurvivesWhenCategoriesCannotLoad() throws Exception {
+        DbClient.update("EXEC sp_rename 'dbo.category', 'category_hidden'");
+        try {
+            String body = AppClient.get("listprod.jsp").body();
+            assertEquals("<option value=\"\">All categories</option>", select(body).trim(),
+                    "dropdown falls back to just 'All'");
+            assertTrue(body.contains("Unable to load products"), body);
+        } finally {
+            DbClient.update("EXEC sp_rename 'dbo.category_hidden', 'category'");
+        }
+    }
+
     // ---- Formatting -------------------------------------------------------------------
 
     @Test
